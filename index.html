@@ -168,6 +168,88 @@
             box-shadow: 0 18px 50px rgba(8, 17, 31, 0.28);
         }
 
+        .config-panel {
+            margin-bottom: 20px;
+            padding: 22px;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .config-title {
+            font-size: 18px;
+            margin-bottom: 6px;
+        }
+
+        .config-desc {
+            color: var(--text-soft);
+            font-size: 13px;
+            line-height: 1.8;
+            max-width: 620px;
+        }
+
+        .field-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .field-input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            background: rgba(8, 17, 31, 0.38);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .field-input::placeholder {
+            color: rgba(151, 166, 186, 0.78);
+        }
+
+        .field-input:focus {
+            border-color: rgba(89, 208, 194, 0.56);
+            box-shadow: 0 0 0 4px rgba(89, 208, 194, 0.14);
+            background: rgba(8, 17, 31, 0.55);
+        }
+
+        .field-remove {
+            min-width: 88px;
+        }
+
+        .config-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .config-tip {
+            color: var(--text-soft);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
         .upload-topline {
             display: flex;
             align-items: center;
@@ -597,11 +679,30 @@
             <div class="panel-header">
                 <div>
                     <h2 class="section-title">上传与处理</h2>
-                    <p class="section-desc">拖拽或点击导入多个 Excel 文件，然后执行提取并查看结果。</p>
+                    <p class="section-desc">先设置需要提取的字段，再导入多个 Excel 文件执行批量提取和结果预览。</p>
                 </div>
                 <div class="selection-badge">
                     <strong id="selectedCount">0</strong>
                     <span>个文件待处理</span>
+                </div>
+            </div>
+
+            <div class="config-panel">
+                <div class="config-header">
+                    <div>
+                        <div class="config-title">提取字段配置</div>
+                        <div class="config-desc">
+                            默认提取“姓名、身份证、月收入”。你也可以自行修改、删除或新增字段名称。
+                            系统会按你填写的字段关键字，在 Excel 表格中查找对应内容。
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" type="button" id="addFieldBtn">新增字段</button>
+                </div>
+
+                <div class="field-list" id="fieldList"></div>
+
+                <div class="config-footer">
+                    <div class="config-tip" id="fieldConfigTip">当前默认字段 3 项，可按需调整。</div>
                 </div>
             </div>
 
@@ -662,13 +763,7 @@
         <div class="table-container">
             <table id="previewTable">
                 <thead>
-                    <tr>
-                        <th>序号</th>
-                        <th>文件名</th>
-                        <th>姓名</th>
-                        <th>身份证号</th>
-                        <th>月收入</th>
-                    </tr>
+                    <tr id="tableHeadRow"></tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
             </table>
@@ -691,6 +786,7 @@
     const processBtn = document.getElementById('processBtn');
     const previewSection = document.getElementById('previewSection');
     const tableBody = document.getElementById('tableBody');
+    const tableHeadRow = document.getElementById('tableHeadRow');
     const statsText = document.getElementById('statsText');
     const selectedCount = document.getElementById('selectedCount');
     const uploadStatus = document.getElementById('uploadStatus');
@@ -700,9 +796,25 @@
     const totalCount = document.getElementById('totalCount');
     const successCountEl = document.getElementById('successCount');
     const incompleteCountEl = document.getElementById('incompleteCount');
+    const fieldList = document.getElementById('fieldList');
+    const addFieldBtn = document.getElementById('addFieldBtn');
+    const fieldConfigTip = document.getElementById('fieldConfigTip');
 
     let extractedData = [];
     let allFiles = [];
+    let fieldConfigs = [
+        { id: createFieldId(), label: '姓名' },
+        { id: createFieldId(), label: '身份证' },
+        { id: createFieldId(), label: '月收入' }
+    ];
+
+    renderFieldInputs();
+    renderTableHeader(getActiveFields());
+
+    addFieldBtn.addEventListener('click', () => {
+        fieldConfigs.push({ id: createFieldId(), label: '' });
+        renderFieldInputs();
+    });
 
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -756,28 +868,33 @@
             return;
         }
 
+        const activeFields = getActiveFields();
+        if (activeFields.length === 0) {
+            alert('请至少配置一个需要提取的字段！');
+            return;
+        }
+
         processBtn.disabled = true;
         processBtn.textContent = '处理中，请稍候...';
         extractedData = [];
+        renderTableHeader(activeFields);
 
         const files = Array.from(fileInput.files);
         logDiv.style.display = 'block';
         logDiv.innerHTML = '<div class="log-title">处理日志</div>';
-        addLog(`开始处理，共 ${files.length} 个文件。`, 'info');
+        addLog(`开始处理，共 ${files.length} 个文件，提取字段 ${activeFields.map((field) => field.label).join('、')}。`, 'info');
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             try {
-                const result = await readExcel(file);
+                const result = await readExcel(file, activeFields);
                 extractedData.push({
                     index: i + 1,
                     fileName: file.name,
-                    name: result.name,
-                    idCard: result.idCard,
-                    income: result.income
+                    values: result.values
                 });
 
-                const isComplete = result.name && result.idCard;
+                const isComplete = activeFields.every((field) => result.values[field.label]);
                 addLog(
                     isComplete ? `${file.name} 提取完成。` : `${file.name} 提取完成，但存在缺失字段。`,
                     isComplete ? 'success' : 'error'
@@ -795,7 +912,7 @@
         processBtn.textContent = '重新提取当前文件';
     }
 
-    function readExcel(file) {
+    function readExcel(file, fields) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -804,10 +921,11 @@
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                const extractedValues = {};
 
-                let extractedName = '';
-                let extractedId = '';
-                let extractedIncome = '';
+                fields.forEach((field) => {
+                    extractedValues[field.label] = '';
+                });
 
                 for (const row of jsonData) {
                     if (row.length < 2) {
@@ -816,22 +934,22 @@
 
                     const key = String(row[0]).trim();
                     const value = row[1];
+                    const normalizedKey = normalizeText(key);
 
-                    if (key.includes('姓名')) {
-                        extractedName = value || '';
-                    }
-                    if (key.includes('身份证')) {
-                        extractedId = value ? String(value) : '';
-                    }
-                    if (key.includes('月收入')) {
-                        extractedIncome = value || '';
+                    for (const field of fields) {
+                        if (extractedValues[field.label]) {
+                            continue;
+                        }
+
+                        const normalizedLabel = normalizeText(field.label);
+                        if (normalizedLabel && normalizedKey.includes(normalizedLabel)) {
+                            extractedValues[field.label] = value ? String(value) : '';
+                        }
                     }
                 }
 
                 resolve({
-                    name: extractedName,
-                    idCard: extractedId,
-                    income: extractedIncome
+                    values: extractedValues
                 });
             };
             reader.onerror = reject;
@@ -841,31 +959,38 @@
 
     function showPreview() {
         tableBody.innerHTML = '';
+        const activeFields = getActiveFields();
+        renderTableHeader(activeFields);
 
         extractedData.forEach((row, index) => {
             const tr = document.createElement('tr');
-            const isComplete = row.name && row.idCard;
+            const isComplete = activeFields.every((field) => row.values[field.label]);
 
             if (!isComplete) {
                 tr.classList.add('highlight');
             }
 
+            const valueCells = activeFields.map((field) => {
+                const value = row.values[field.label];
+                return `<td>${value ? `<span class="value-text">${escapeHtml(value)}</span>` : '<span class="not-found">未找到</span>'}</td>`;
+            }).join('');
+
             tr.innerHTML = `
                 <td><span class="row-index">${index + 1}</span></td>
                 <td class="file-cell">
-                    <div class="file-primary" title="${row.fileName}">${truncateText(row.fileName, 30)}</div>
+                    <div class="file-primary" title="${escapeHtml(row.fileName)}">${escapeHtml(truncateText(row.fileName, 30))}</div>
                     <div class="file-secondary ${isComplete ? 'complete' : 'incomplete'}">
                         ${isComplete ? '信息完整' : '待补充核对'}
                     </div>
                 </td>
-                <td>${row.name ? `<span class="value-text">${row.name}</span>` : '<span class="not-found">未找到</span>'}</td>
-                <td>${row.idCard ? `<span class="value-text">${row.idCard}</span>` : '<span class="not-found">未找到</span>'}</td>
-                <td>${row.income ? `<span class="value-text">${row.income}</span>` : '<span class="not-found">未找到</span>'}</td>
+                ${valueCells}
             `;
             tableBody.appendChild(tr);
         });
 
-        const successCount = extractedData.filter((item) => item.name && item.idCard).length;
+        const successCount = extractedData.filter((item) =>
+            activeFields.every((field) => item.values[field.label])
+        ).length;
         const incompleteCount = extractedData.length - successCount;
 
         statsText.textContent = `共 ${extractedData.length} 条 | 成功 ${successCount} 条 | 不完整 ${incompleteCount} 条`;
@@ -883,17 +1008,21 @@
             return;
         }
 
+        const activeFields = getActiveFields();
+        if (activeFields.length === 0) {
+            alert('当前没有可导出的字段配置！');
+            return;
+        }
+
         const exportData = [
-            ['序号', '文件名', '姓名', '身份证号', '月收入']
+            ['序号', '文件名', ...activeFields.map((field) => field.label)]
         ];
 
         extractedData.forEach((row) => {
             exportData.push([
                 row.index,
                 row.fileName,
-                row.name,
-                row.idCard,
-                row.income
+                ...activeFields.map((field) => row.values[field.label] || '')
             ]);
         });
 
@@ -903,9 +1032,7 @@
         ws['!cols'] = [
             { wch: 6 },
             { wch: 30 },
-            { wch: 12 },
-            { wch: 25 },
-            { wch: 15 }
+            ...activeFields.map((field) => ({ wch: Math.max(14, field.label.length + 8) }))
         ];
 
         XLSX.utils.book_append_sheet(wb, ws, '提取结果');
@@ -927,6 +1054,87 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    function renderFieldInputs() {
+        fieldList.innerHTML = '';
+
+        fieldConfigs.forEach((field, index) => {
+            const row = document.createElement('div');
+            row.className = 'field-row';
+            row.innerHTML = `
+                <input
+                    class="field-input"
+                    type="text"
+                    data-field-id="${field.id}"
+                    placeholder="请输入需要提取的字段名称，例如：姓名、身份证、月收入"
+                    value="${escapeHtml(field.label)}"
+                >
+                <button
+                    class="btn btn-secondary field-remove"
+                    type="button"
+                    data-remove-id="${field.id}"
+                    ${fieldConfigs.length === 1 ? 'disabled' : ''}
+                >
+                    删除
+                </button>
+            `;
+            fieldList.appendChild(row);
+
+            const input = row.querySelector('.field-input');
+            const removeBtn = row.querySelector('.field-remove');
+
+            input.addEventListener('input', (event) => {
+                const currentField = fieldConfigs.find((item) => item.id === field.id);
+                if (currentField) {
+                    currentField.label = event.target.value;
+                }
+                syncFieldConfigTip();
+                renderTableHeader(getActiveFields());
+            });
+
+            removeBtn.addEventListener('click', () => {
+                if (fieldConfigs.length === 1) {
+                    return;
+                }
+                fieldConfigs = fieldConfigs.filter((item) => item.id !== field.id);
+                renderFieldInputs();
+                renderTableHeader(getActiveFields());
+            });
+        });
+
+        syncFieldConfigTip();
+    }
+
+    function getActiveFields() {
+        return fieldConfigs
+            .map((field) => ({
+                id: field.id,
+                label: String(field.label || '').trim()
+            }))
+            .filter((field) => field.label);
+    }
+
+    function renderTableHeader(fields) {
+        tableHeadRow.innerHTML = '';
+
+        const headers = ['序号', '文件名', ...fields.map((field) => field.label)];
+        headers.forEach((header) => {
+            const th = document.createElement('th');
+            th.textContent = header;
+            tableHeadRow.appendChild(th);
+        });
+    }
+
+    function syncFieldConfigTip() {
+        const activeCount = getActiveFields().length;
+        fieldConfigTip.textContent = activeCount > 0
+            ? `当前有效字段 ${activeCount} 项，预览和导出会按这些字段动态生成。`
+            : '当前没有有效字段，请至少填写一个字段名称。';
+    }
+
+    function createFieldId() {
+        return `field_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
     function addLog(msg, type) {
         const div = document.createElement('div');
         div.className = `status-item ${type}`;
@@ -940,6 +1148,19 @@
             return '';
         }
         return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+    }
+
+    function normalizeText(text) {
+        return String(text || '').replace(/\s+/g, '').trim();
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 </script>
 </body>
