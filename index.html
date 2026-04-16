@@ -3,223 +3,662 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel 数据提取工具</title>
+    <title>Excel 数据提取工作台</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
+        :root {
+            --bg: #08111f;
+            --bg-soft: #0f1b31;
+            --panel: rgba(11, 20, 37, 0.78);
+            --panel-strong: rgba(13, 24, 46, 0.94);
+            --panel-light: #f4f7fb;
+            --line: rgba(148, 163, 184, 0.18);
+            --line-strong: rgba(148, 163, 184, 0.28);
+            --text: #e7edf7;
+            --text-soft: #97a6ba;
+            --text-dark: #172033;
+            --primary: #59d0c2;
+            --primary-strong: #2fb2b2;
+            --accent: #ffa94d;
+            --danger: #ff7a8a;
+            --success: #56e0a0;
+            --warning: #ffd166;
+            --shadow-lg: 0 24px 80px rgba(3, 7, 18, 0.38);
+            --shadow-md: 0 18px 40px rgba(10, 17, 31, 0.22);
+            --radius-xl: 28px;
+            --radius-lg: 22px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+            font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
             min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(89, 208, 194, 0.20), transparent 32%),
+                radial-gradient(circle at top right, rgba(255, 169, 77, 0.16), transparent 26%),
+                linear-gradient(145deg, #060d19 0%, #08111f 45%, #0f1830 100%);
+            color: var(--text);
+            padding: 32px 18px 48px;
         }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: auto;
+            border-radius: 999px;
+            filter: blur(100px);
+            opacity: 0.45;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::before {
+            width: 280px;
+            height: 280px;
+            background: rgba(89, 208, 194, 0.18);
+            top: 6%;
+            left: 4%;
+        }
+
+        body::after {
+            width: 320px;
+            height: 320px;
+            background: rgba(255, 169, 77, 0.14);
+            right: 3%;
+            bottom: 10%;
+        }
+
         .container {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            max-width: 1200px;
+            position: relative;
+            z-index: 1;
+            max-width: 1240px;
             margin: 0 auto;
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        .upload-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-        }
-        .upload-area {
-            border: 2px dashed #667eea;
-            padding: 40px;
-            text-align: center;
-            border-radius: 8px;            cursor: pointer;
-            transition: all 0.3s;
-            background: white;
-        }
-        .upload-area:hover {
-            background: #f0f4ff;
-            border-color: #764ba2;
-        }
-        .upload-area.dragover {
-            background: #e8eeff;
-            border-color: #764ba2;
-            transform: scale(1.02);
-        }
-        input[type="file"] {
-            display: none;
-        }
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin: 5px;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-success {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        }
-        .btn-success:hover {
-            box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
-        }
-        .btn-group {
-            text-align: center;
-            margin-top: 20px;
-        }
-        #log {
-            margin: 20px 0;
-            max-height: 150px;
-            overflow-y: auto;            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            display: none;
-        }
-        .status-item {
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .success { color: #11998e; }
-        .error { color: #e74c3c; }
-        
-        /* 预览表格样式 */
+
+        .info-card,
+        .workspace-panel,
         .preview-section {
-            display: none;
-            margin-top: 30px;
-            animation: fadeIn 0.5s;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-lg);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
         }
-        .preview-header {
+
+        .workspace-panel {
+            border-radius: var(--radius-xl);
+            padding: 28px;
+        }
+
+        .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .section-desc {
+            color: var(--text-soft);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .selection-badge {
+            min-width: 122px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: right;
+        }
+
+        .selection-badge strong {
+            display: block;
+            font-size: 28px;
+            line-height: 1;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .selection-badge span {
+            font-size: 12px;
+            color: var(--text-soft);
+        }
+
+        .upload-area {
+            display: block;
+            cursor: pointer;
+            border-radius: 24px;
+            padding: 32px 24px;
+            border: 1.5px dashed rgba(89, 208, 194, 0.4);
+            background:
+                linear-gradient(160deg, rgba(89, 208, 194, 0.12), rgba(89, 208, 194, 0.03)),
+                rgba(255, 255, 255, 0.03);
+            transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            transform: translateY(-4px);
+            border-color: rgba(89, 208, 194, 0.82);
+            background:
+                linear-gradient(160deg, rgba(89, 208, 194, 0.18), rgba(255, 169, 77, 0.08)),
+                rgba(255, 255, 255, 0.06);
+            box-shadow: 0 18px 50px rgba(8, 17, 31, 0.28);
+        }
+
+        .upload-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .upload-chip {
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #dfe9f6;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .upload-icon {
+            width: 76px;
+            height: 76px;
+            border-radius: 22px;
+            display: grid;
+            place-items: center;
+            font-size: 34px;
+            background: linear-gradient(145deg, rgba(89, 208, 194, 0.22), rgba(255, 169, 77, 0.14));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            margin-bottom: 18px;
+        }
+
+        .upload-title {
+            font-size: 28px;
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+
+        .upload-subtitle {
+            font-size: 15px;
+            color: var(--text-soft);
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+
+        .upload-meta {
+            display: flex;
             flex-wrap: wrap;
             gap: 10px;
         }
-        .preview-title {
-            font-size: 20px;
-            color: #333;
-            font-weight: 600;
-        }
-        .stats {
-            background: #f0f4ff;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            color: #667eea;
-        }
-        .table-container {
-            overflow-x: auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        table {
-            width: 100%;            border-collapse: collapse;
-            background: white;
-            font-size: 14px;
-        }
-        thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            font-weight: 600;
-            text-transform: uppercase;
+
+        .upload-meta span {
+            padding: 9px 12px;
+            border-radius: 999px;
             font-size: 12px;
-            letter-spacing: 0.5px;
+            color: #dbe7f7;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.07);
         }
-        tbody tr:hover {
-            background: #f8f9fa;
+
+        input[type="file"] {
+            display: none;
         }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .helper-text {
+            color: var(--text-soft);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 16px;
+            padding: 14px 22px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+            color: #03262a;
+            box-shadow: 0 18px 36px rgba(47, 178, 178, 0.28);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #eaf2fb;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, #ffbd70 0%, var(--accent) 100%);
+            color: #372104;
+            box-shadow: 0 18px 36px rgba(255, 169, 77, 0.24);
+        }
+
+        #log {
+            margin-top: 22px;
+            display: none;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 14px 16px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .log-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: #9eece2;
+            margin-bottom: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 0;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            color: #dbe6f3;
+        }
+
+        .status-item:last-child {
+            border-bottom: 0;
+        }
+
+        .status-item::before {
+            content: "";
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            flex: 0 0 auto;
+        }
+
+        .status-item.info::before {
+            background: #7cc7ff;
+            box-shadow: 0 0 0 4px rgba(124, 199, 255, 0.15);
+        }
+
+        .status-item.success::before {
+            background: var(--success);
+            box-shadow: 0 0 0 4px rgba(86, 224, 160, 0.16);
+        }
+
+        .status-item.error::before {
+            background: var(--danger);
+            box-shadow: 0 0 0 4px rgba(255, 122, 138, 0.16);
+        }
+
+        .preview-section {
+            display: none;
+            border-radius: var(--radius-xl);
+            padding: 28px;
+            animation: fadeIn 0.45s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .preview-kicker {
+            color: #9eece2;
+            font-size: 12px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .preview-title {
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+
+        .preview-desc {
+            color: var(--text-soft);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        .stats {
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: rgba(89, 208, 194, 0.1);
+            border: 1px solid rgba(89, 208, 194, 0.18);
+            color: #c8fff7;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            padding: 18px 20px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .summary-card span {
+            display: block;
+            color: var(--text-soft);
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .summary-card strong {
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .summary-card.total strong {
+            color: #ffffff;
+        }
+
+        .summary-card.success strong {
+            color: var(--success);
+        }
+
+        .summary-card.incomplete strong {
+            color: var(--warning);
+        }
+
+        .table-container {
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: #eef3f8;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--panel-light);
+            color: var(--text-dark);
+        }
+
+        thead {
+            background: linear-gradient(135deg, #122443 0%, #17345f 100%);
+            color: #eef6ff;
+        }
+
+        th,
+        td {
+            padding: 16px 18px;
+            text-align: left;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            vertical-align: middle;
+        }
+
+        th {
+            font-size: 12px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        tbody tr {
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
         tbody tr:nth-child(even) {
-            background: #fafbfc;
+            background: rgba(255, 255, 255, 0.48);
         }
+
+        tbody tr:hover {
+            background: rgba(89, 208, 194, 0.09);
+        }
+
+        tbody tr.highlight {
+            background: linear-gradient(90deg, rgba(255, 209, 102, 0.23), rgba(255, 255, 255, 0.85));
+        }
+
+        .row-index {
+            display: inline-grid;
+            place-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: #deecfb;
+            color: #17345f;
+            font-weight: 700;
+        }
+
+        .file-cell {
+            min-width: 220px;
+        }
+
+        .file-primary {
+            font-weight: 600;
+            color: #0f1f37;
+            margin-bottom: 6px;
+        }
+
+        .file-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 999px;
+        }
+
+        .file-secondary.complete {
+            background: rgba(86, 224, 160, 0.18);
+            color: #127c50;
+        }
+
+        .file-secondary.incomplete {
+            background: rgba(255, 209, 102, 0.28);
+            color: #9a6908;
+        }
+
         .not-found {
-            color: #999;
+            color: #8a98aa;
             font-style: italic;
         }
-        .highlight {
-            background: #fff3cd !important;
+
+        .value-text {
+            font-weight: 500;
+            color: #172033;
         }
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
+
+        .preview-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .preview-note {
+            color: var(--text-soft);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 18px 12px 32px;
             }
-            th, td {
-                padding: 8px 10px;
-                font-size: 12px;
+
+            .workspace-panel,
+            .preview-section,
+            .info-card {
+                padding: 22px;
+                border-radius: 22px;
+            }
+
+            .upload-area {
+                padding: 24px 18px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th,
+            td {
+                padding: 13px 12px;
+                font-size: 13px;
+            }
+
+            .preview-title,
+            .upload-title,
+            .section-title {
+                font-size: 24px;
             }
         }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <h1>📊 Excel 数据提取工具</h1>
-    <p class="subtitle">提取字段：<b>姓名</b>、<b>身份证号</b>、<b>月收入</b></p>
+    <section class="workspace">
+        <div class="workspace-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="section-title">上传与处理</h2>
+                    <p class="section-desc">拖拽或点击导入多个 Excel 文件，然后执行提取并查看结果。</p>
+                </div>
+                <div class="selection-badge">
+                    <strong id="selectedCount">0</strong>
+                    <span>个文件待处理</span>
+                </div>
+            </div>
 
-    <div class="upload-section">        <label class="upload-area" id="dropZone">
-            <div style="font-size: 48px; margin-bottom: 10px;">📁</div>
-            <div style="font-size: 16px; color: #667eea; margin-bottom: 5px;">
-                点击或拖拽文件到此处
+            <label class="upload-area" id="dropZone">
+                <div class="upload-topline">
+                    <span class="upload-chip">支持 `.xlsx` / `.xls`</span>
+                    <span class="upload-chip" id="uploadStatus">等待选择文件</span>
+                </div>
+                <div class="upload-icon">📁</div>
+                <div class="upload-title" id="uploadTitle">点击选择或直接拖拽 Excel 文件</div>
+                <div class="upload-subtitle" id="uploadSubtitle">
+                    建议一次导入同一类型的数据表，提取完成后可直接在下方预览异常项并导出结果。
+                </div>
+                <div class="upload-meta">
+                    <span>多文件选择</span>
+                    <span>自动识别字段</span>
+                    <span>本地处理更安全</span>
+                </div>
+                <input type="file" id="fileInput" multiple accept=".xlsx, .xls">
+            </label>
+
+            <div class="action-row">
+                <p class="helper-text" id="helperText">尚未选择文件，导入后即可开始提取。</p>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="processBtn" onclick="processFiles()">开始提取并预览</button>
+                </div>
             </div>
-            <div style="font-size: 12px; color: #999;">
-                支持 .xlsx, .xls 格式，可多选
-            </div>
-            <input type="file" id="fileInput" multiple accept=".xlsx, .xls">
-        </label>
-        
-        <div id="log"></div>
-        
-        <div class="btn-group">
-            <button class="btn" id="processBtn" onclick="processFiles()">
-                🔍 提取数据并预览
-            </button>
+
+            <div id="log"></div>
         </div>
-    </div>
+    </section>
 
-    <!-- 预览区域 -->
-    <div class="preview-section" id="previewSection">
+    <section class="preview-section" id="previewSection">
         <div class="preview-header">
-            <div class="preview-title">📋 提取结果预览</div>
-            <div class="stats" id="statsText"></div>
+            <div>
+                <div class="preview-kicker">Result Preview</div>
+                <div class="preview-title">提取结果预览</div>
+                <p class="preview-desc">处理完成后会在这里展示结果，信息不完整的记录会以高亮形式提醒你进一步检查。</p>
+            </div>
+            <div class="stats" id="statsText">共 0 条 | 成功 0 条 | 不完整 0 条</div>
         </div>
+
+        <div class="summary-grid">
+            <div class="summary-card total">
+                <span>总记录数</span>
+                <strong id="totalCount">0</strong>
+            </div>
+            <div class="summary-card success">
+                <span>完整记录</span>
+                <strong id="successCount">0</strong>
+            </div>
+            <div class="summary-card incomplete">
+                <span>待检查记录</span>
+                <strong id="incompleteCount">0</strong>
+            </div>
+        </div>
+
         <div class="table-container">
             <table id="previewTable">
                 <thead>
@@ -231,19 +670,19 @@
                         <th>月收入</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody">
-                </tbody>
+                <tbody id="tableBody"></tbody>
             </table>
         </div>
-        <div class="btn-group">
-            <button class="btn btn-success" onclick="downloadExcel()">
-                💾 下载 Excel 文件
-            </button>
-            <button class="btn" onclick="resetAll()">
-                🔄 重新提取
-            </button>
+
+        <div class="preview-actions">
+            <p class="preview-note">导出时会保留当前提取结果的顺序，方便后续继续核对与汇总。</p>
+            <div class="btn-group">
+                <button class="btn btn-accent" onclick="downloadExcel()">下载 Excel 文件</button>
+                <button class="btn btn-secondary" onclick="resetAll()">重新选择文件</button>
+            </div>
         </div>
-    </div></div>
+    </section>
+</div>
 
 <script>
     const fileInput = document.getElementById('fileInput');
@@ -253,11 +692,18 @@
     const previewSection = document.getElementById('previewSection');
     const tableBody = document.getElementById('tableBody');
     const statsText = document.getElementById('statsText');
-    
+    const selectedCount = document.getElementById('selectedCount');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const uploadTitle = document.getElementById('uploadTitle');
+    const uploadSubtitle = document.getElementById('uploadSubtitle');
+    const helperText = document.getElementById('helperText');
+    const totalCount = document.getElementById('totalCount');
+    const successCountEl = document.getElementById('successCount');
+    const incompleteCountEl = document.getElementById('incompleteCount');
+
     let extractedData = [];
     let allFiles = [];
 
-    // 拖拽功能
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('dragover');
@@ -273,36 +719,52 @@
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
+            allFiles = Array.from(files);
             updateFileCount(files.length);
         }
     });
 
     fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-            updateFileCount(e.target.files.length);
-            allFiles = Array.from(e.target.files);
-        }
+        const files = Array.from(e.target.files);
+        allFiles = files;
+        updateFileCount(files.length);
     });
 
     function updateFileCount(count) {
-        const uploadText = dropZone.querySelector('div:nth-child(2)');
-        uploadText.textContent = `已选择 ${count} 个文件，点击"提取数据"开始处理`;
-        uploadText.style.color = '#11998e';
-        logDiv.style.display = 'block';
-        logDiv.innerHTML = '';
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+            uploadStatus.textContent = '文件已就绪';
+            uploadTitle.textContent = `已选择 ${count} 个文件，点击下方按钮开始提取`;
+            uploadSubtitle.textContent = '文件已载入工作区，你可以立即开始处理，也可以继续追加选择其他 Excel 文件。';
+            helperText.textContent = `当前待处理 ${count} 个文件，点击“开始提取并预览”即可执行。`;
+            logDiv.style.display = 'block';
+            logDiv.innerHTML = '<div class="log-title">处理日志</div><div class="status-item info">文件已载入，等待开始提取。</div>';
+        } else {
+            uploadStatus.textContent = '等待选择文件';
+            uploadTitle.textContent = '点击选择或直接拖拽 Excel 文件';
+            uploadSubtitle.textContent = '建议一次导入同一类型的数据表，提取完成后可直接在下方预览异常项并导出结果。';
+            helperText.textContent = '尚未选择文件，导入后即可开始提取。';
+            logDiv.style.display = 'none';
+            logDiv.innerHTML = '';
+        }
     }
 
-    async function processFiles() {        if (fileInput.files.length === 0) {
+    async function processFiles() {
+        if (fileInput.files.length === 0) {
             alert('请先选择文件！');
             return;
         }
 
         processBtn.disabled = true;
-        processBtn.textContent = '⏳ 处理中...';
+        processBtn.textContent = '处理中，请稍候...';
         extractedData = [];
-        
+
         const files = Array.from(fileInput.files);
-        
+        logDiv.style.display = 'block';
+        logDiv.innerHTML = '<div class="log-title">处理日志</div>';
+        addLog(`开始处理，共 ${files.length} 个文件。`, 'info');
+
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             try {
@@ -314,24 +776,23 @@
                     idCard: result.idCard,
                     income: result.income
                 });
-                
-                const status = (result.name && result.idCard) ? 'success' : 'error';
-                const msg = result.name && result.idCard ? 
-                    `✅ ${file.name}` : 
-                    `⚠️ ${file.name} (数据不完整)`;
-                addLog(msg, status);
-                
+
+                const isComplete = result.name && result.idCard;
+                addLog(
+                    isComplete ? `${file.name} 提取完成。` : `${file.name} 提取完成，但存在缺失字段。`,
+                    isComplete ? 'success' : 'error'
+                );
             } catch (err) {
                 console.error(err);
-                addLog(`❌ ${file.name} 读取失败`, 'error');
+                addLog(`${file.name} 读取失败。`, 'error');
             }
         }
 
-        // 显示预览表格
         showPreview();
-        
+        addLog('全部文件处理结束，可在下方预览并导出。', 'info');
+
         processBtn.disabled = false;
-        processBtn.textContent = '🔄 重新提取';
+        processBtn.textContent = '重新提取当前文件';
     }
 
     function readExcel(file) {
@@ -339,16 +800,20 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
+                const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-                
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
                 let extractedName = '';
                 let extractedId = '';
                 let extractedIncome = '';
 
-                for (let row of jsonData) {
-                    if (row.length < 2) continue;
+                for (const row of jsonData) {
+                    if (row.length < 2) {
+                        continue;
+                    }
+
                     const key = String(row[0]).trim();
                     const value = row[1];
 
@@ -376,29 +841,40 @@
 
     function showPreview() {
         tableBody.innerHTML = '';
-        
+
         extractedData.forEach((row, index) => {
             const tr = document.createElement('tr');
-            
-            // 高亮显示数据不完整的行
-            if (!row.name || !row.idCard) {
+            const isComplete = row.name && row.idCard;
+
+            if (!isComplete) {
                 tr.classList.add('highlight');
             }
-            
+
             tr.innerHTML = `
-                <td>${index + 1}</td>
-                <td title="${row.fileName}">${truncateText(row.fileName, 25)}</td>
-                <td>${row.name || '<span class="not-found">未找到</span>'}</td>
-                <td>${row.idCard || '<span class="not-found">未找到</span>'}</td>
-                <td>${row.income || '<span class="not-found">未找到</span>'}</td>            `;
+                <td><span class="row-index">${index + 1}</span></td>
+                <td class="file-cell">
+                    <div class="file-primary" title="${row.fileName}">${truncateText(row.fileName, 30)}</div>
+                    <div class="file-secondary ${isComplete ? 'complete' : 'incomplete'}">
+                        ${isComplete ? '信息完整' : '待补充核对'}
+                    </div>
+                </td>
+                <td>${row.name ? `<span class="value-text">${row.name}</span>` : '<span class="not-found">未找到</span>'}</td>
+                <td>${row.idCard ? `<span class="value-text">${row.idCard}</span>` : '<span class="not-found">未找到</span>'}</td>
+                <td>${row.income ? `<span class="value-text">${row.income}</span>` : '<span class="not-found">未找到</span>'}</td>
+            `;
             tableBody.appendChild(tr);
         });
 
-        const successCount = extractedData.filter(d => d.name && d.idCard).length;
-        statsText.textContent = `共 ${extractedData.length} 条 | 成功 ${successCount} 条 | 不完整 ${extractedData.length - successCount} 条`;
-        
+        const successCount = extractedData.filter((item) => item.name && item.idCard).length;
+        const incompleteCount = extractedData.length - successCount;
+
+        statsText.textContent = `共 ${extractedData.length} 条 | 成功 ${successCount} 条 | 不完整 ${incompleteCount} 条`;
+        totalCount.textContent = extractedData.length;
+        successCountEl.textContent = successCount;
+        incompleteCountEl.textContent = incompleteCount;
+
         previewSection.style.display = 'block';
-        previewSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function downloadExcel() {
@@ -410,8 +886,8 @@
         const exportData = [
             ['序号', '文件名', '姓名', '身份证号', '月收入']
         ];
-        
-        extractedData.forEach(row => {
+
+        extractedData.forEach((row) => {
             exportData.push([
                 row.index,
                 row.fileName,
@@ -423,44 +899,48 @@
 
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(exportData);
-        
+
         ws['!cols'] = [
-            {wch: 6},   // 序号
-            {wch: 30},  // 文件名
-            {wch: 12},  // 姓名
-            {wch: 25},  // 身份证号
-            {wch: 15}   // 月收入
+            { wch: 6 },
+            { wch: 30 },
+            { wch: 12 },
+            { wch: 25 },
+            { wch: 15 }
         ];
-        
-        XLSX.utils.book_append_sheet(wb, ws, "提取结果");
+
+        XLSX.utils.book_append_sheet(wb, ws, '提取结果');
         XLSX.writeFile(wb, `数据提取结果_${new Date().getTime()}.xlsx`);
     }
 
     function resetAll() {
         fileInput.value = '';
         extractedData = [];
-        allFiles = [];        previewSection.style.display = 'none';
-        logDiv.innerHTML = '';
-        logDiv.style.display = 'none';
-        processBtn.textContent = '🔍 提取数据并预览';
-        dropZone.querySelector('div:nth-child(2)').textContent = '点击或拖拽文件到此处';
-        dropZone.querySelector('div:nth-child(2)').style.color = '#667eea';
+        allFiles = [];
+        previewSection.style.display = 'none';
+        processBtn.textContent = '开始提取并预览';
+        processBtn.disabled = false;
+        totalCount.textContent = '0';
+        successCountEl.textContent = '0';
+        incompleteCountEl.textContent = '0';
+        statsText.textContent = '共 0 条 | 成功 0 条 | 不完整 0 条';
+        updateFileCount(0);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function addLog(msg, type) {
         const div = document.createElement('div');
-        div.className = 'status-item ' + type;
+        div.className = `status-item ${type}`;
         div.textContent = msg;
         logDiv.appendChild(div);
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
     function truncateText(text, maxLength) {
-        if (!text) return '';
-        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        if (!text) {
+            return '';
+        }
+        return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
     }
 </script>
-
 </body>
 </html>
